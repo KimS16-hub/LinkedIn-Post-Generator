@@ -59,12 +59,12 @@ export function FileUpload({ onBriefsLoaded, onError }: FileUploadProps) {
       <Upload className="mx-auto h-12 w-12 text-gray-400 dark:text-gray-500" />
       <h3 className="mt-2 text-sm font-semibold text-gray-900 dark:text-gray-100">Upload a file</h3>
       <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-        Drag and drop or click to upload your CSV/XLSX file
+        Drag and drop or click to upload CSV, XLSX, TXT, MD, PDF, or DOCX
       </p>
       <input
         ref={fileInputRef}
         type="file"
-        accept=".csv,.xlsx"
+        accept=".csv,.xlsx,.txt,.md,.pdf,.docx"
         onChange={handleFileChange}
         className="hidden"
         id="file-upload"

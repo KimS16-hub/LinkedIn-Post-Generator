@@ -1,9 +1,15 @@
 import Papa from 'papaparse';
 import * as XLSX from 'xlsx';
+import mammoth from 'mammoth';
+import { getDocument, GlobalWorkerOptions, version as pdfjsVersion } from 'pdfjs-dist/legacy/build/pdf.mjs';
 import type { Brief } from '../types';
 
 type RowCell = string | number | boolean | null | undefined;
 type RowData = RowCell[];
+
+const SUPPORTED_EXTENSIONS = ['csv', 'xlsx', 'txt', 'md', 'pdf', 'docx'];
+
+GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjsVersion}/legacy/build/pdf.worker.min.mjs`;
 
 function toBriefsFromRows(rows: RowData[]): Brief[] {
   return rows
@@ -14,13 +20,49 @@ function toBriefsFromRows(rows: RowData[]): Brief[] {
     }));
 }
 
+function toSingleBrief(text: string): Brief[] {
+  const content = text.trim();
+  if (!content) return [];
+
+  return [
+    {
+      id: 'brief-0',
+      content,
+    },
+  ];
+}
+
+async function parsePdf(file: File): Promise<Brief[]> {
+  const bytes = new Uint8Array(await file.arrayBuffer());
+  const pdf = await getDocument({ data: bytes }).promise;
+  const pages: string[] = [];
+
+  for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber += 1) {
+    const page = await pdf.getPage(pageNumber);
+    const textContent = await page.getTextContent();
+    const pageText = textContent.items
+      .map((item) => ('str' in item ? item.str : ''))
+      .join(' ')
+      .trim();
+
+    if (pageText) pages.push(pageText);
+  }
+
+  return toSingleBrief(pages.join('\n\n'));
+}
+
+async function parseDocx(file: File): Promise<Brief[]> {
+  const { value } = await mammoth.extractRawText({ arrayBuffer: await file.arrayBuffer() });
+  return toSingleBrief(value);
+}
+
 export async function parseFile(file: File): Promise<Brief[]> {
   if (!file) throw new Error('No file provided');
 
   const extension = file.name.split('.').pop()?.toLowerCase();
-  
-  if (!['csv', 'xlsx'].includes(extension || '')) {
-    throw new Error('Invalid file format. Please upload a CSV or XLSX file.');
+
+  if (!SUPPORTED_EXTENSIONS.includes(extension || '')) {
+    throw new Error('Invalid file format. Please upload CSV, XLSX, TXT, MD, PDF, or DOCX.');
   }
 
   if (extension === 'csv') {
@@ -33,7 +75,9 @@ export async function parseFile(file: File): Promise<Brief[]> {
         error: (error) => reject(error),
       });
     });
-  } else {
+  }
+
+  if (extension === 'xlsx') {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
       reader.onload = (e) => {
@@ -53,4 +97,18 @@ export async function parseFile(file: File): Promise<Brief[]> {
       reader.readAsArrayBuffer(file);
     });
   }
+
+  if (extension === 'txt' || extension === 'md') {
+    return toSingleBrief(await file.text());
+  }
+
+  if (extension === 'pdf') {
+    return parsePdf(file);
+  }
+
+  if (extension === 'docx') {
+    return parseDocx(file);
+  }
+
+  throw new Error('Unsupported file format');
 }

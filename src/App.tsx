@@ -71,7 +71,7 @@ export default function App() {
             LinkedIn Post Generator
           </h1>
           <p className="mt-2 text-lg text-gray-600 dark:text-gray-300">
-            Upload a spreadsheet with your content briefs and get AI-generated LinkedIn posts
+            Upload your brief file and get AI-generated LinkedIn posts
           </p>
         </div>
 
