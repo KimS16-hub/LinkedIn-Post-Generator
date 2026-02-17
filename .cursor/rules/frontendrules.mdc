@@ -1,0 +1,119 @@
+---
+description: Frontend and SEO best practices for React/Vite/React DOM/Tailwind projects
+alwaysApply: true
+---
+
+# Frontend & SEO Best Practices
+
+This rule describes how we write modern frontend code and SEO-friendly UIs in this project.
+It applies to all code and should guide everyday decisions.
+
+## Code Style and Structure
+
+- **Use TypeScript everywhere**
+  - Prefer `interface` over `type` for object shapes so they can merge and extend.
+  - Avoid `enum`; use object maps or union literals instead for better type safety.
+- **Prefer functional and declarative patterns**
+  - Use plain functions and React function components.
+  - Avoid classes in React components and helpers.
+- **Keep code small and focused**
+  - One component or concern per file when possible.
+  - Group related helpers, types, and static data with the component that uses them.
+- **Naming**
+  - Use descriptive names with auxiliary verbs, e.g. `isLoading`, `hasError`, `shouldRender`.
+  - Use lowercase-with-dashes for folders, e.g. `components/auth-wizard`.
+- **Exports**
+  - Prefer named exports for functions and components.
+  - Avoid default exports unless interoperability requires it.
+
+## TypeScript & React Components
+
+- **Component definitions**
+  - Use React function components with explicit `Props` interfaces.
+  - Example:
+
+```ts
+interface ButtonProps {
+  label: string
+  isLoading?: boolean
+}
+
+export function PrimaryButton({ label, isLoading }: ButtonProps) {
+  // simple, readable JSX
+}
+```
+
+- **Functions**
+  - Use the `function` keyword for shared utilities to benefit from hoisting and readability.
+  - Keep functions small; extract helpers instead of nesting complex logic.
+
+## UI, Styling, and Design
+
+- **Tailwind CSS**
+  - Use Tailwind utility classes for layout and spacing.
+  - Follow a mobile-first approach; start from small screens and scale up.
+  - Reuse consistent utility patterns to match the design system (spacing, colors, typography).
+- **Icons**
+  - Use `lucide-react` for icons for a consistent, lightweight icon set.
+  - Wrap icons in small presentational components when you reuse them.
+- **Accessibility**
+  - Always provide `aria-label`, `alt`, and semantic HTML where needed.
+  - Prefer `button`, `nav`, `header`, `main`, and similar semantic elements instead of generic `div`s for structure.
+
+## Performance Optimization
+
+- **React performance**
+  - Use React hooks and simple state patterns to avoid unnecessary re-renders.
+  - Memoize expensive computations and callbacks when they cause real performance issues.
+- **Vite usage**
+  - Rely on Vite for fast development and optimized builds.
+  - Use code splitting and dynamic imports for heavy, non-critical routes and components.
+- **Lazy loading**
+  - Lazy load non-critical components, modals, and below-the-fold sections.
+  - Lazy load images with proper placeholders to improve perceived performance.
+- **Images**
+  - Prefer modern formats such as WebP when possible.
+  - Include width and height (or aspect ratio) to prevent layout shifts.
+
+## SEO Best Practices
+
+- **HTML structure**
+  - Use a single `<h1>` per page that clearly describes the main topic.
+  - Use logical heading order (`h2`, `h3`, etc.) to structure content.
+- **Metadata**
+  - Set a descriptive `<title>` and `<meta name="description">` for each page.
+  - Use Open Graph and Twitter meta tags on key marketing pages.
+- **Content**
+  - Use clear, human-readable copy with relevant keywords in headings and body text.
+  - Avoid keyword stuffing; focus on helpful, factual content.
+- **Links**
+  - Use descriptive link text (e.g. “View pricing” instead of “Click here”).
+  - Use `rel="nofollow"` or `rel="sponsored"` where appropriate for external links.
+
+## Web Vitals and Monitoring
+
+- **Core Web Vitals**
+  - Watch LCP, CLS, and FID (or INP) using Lighthouse or similar tools.
+  - Reduce layout shifts by reserving space for dynamic content and images.
+  - Keep initial payloads small with code splitting and asset optimization.
+- **Ongoing checks**
+  - Run performance and SEO audits for major features or pages.
+  - Fix clear regressions before merging.
+
+## Code Review Checklist
+
+- **Readability and structure**
+  - Is the component small, clear, and easy to follow?
+  - Are names descriptive and consistent with the rest of the project?
+- **Type safety**
+  - Are interfaces used correctly and types narrow enough?
+  - Are there any `any` types that can be avoided?
+- **Performance**
+  - Are we avoiding obvious unnecessary re-renders?
+  - Are heavy components and images lazy loaded when possible?
+- **SEO and accessibility**
+  - Does the page have a clear title, description, and heading structure?
+  - Are interactive elements accessible and keyboard friendly?
+
+By following this rule, we keep the frontend fast, maintainable, and search friendly across the whole project.
+

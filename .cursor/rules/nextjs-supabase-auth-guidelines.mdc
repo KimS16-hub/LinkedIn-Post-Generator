@@ -1,0 +1,379 @@
+---
+description: Guidelines for writing Next.js apps with Supabase Auth.
+alwaysApply: true
+---
+
+# Next.js + Supabase Auth Guidelines
+
+## Goals
+
+- Keep auth **simple**, **secure**, and **easy to debug**.
+- Prefer **server-side session validation** for protected pages/data.
+- Avoid leaking secrets. Never use the Service Role key in the browser.
+
+## Packages and recommended approach
+
+- Use the official SSR helpers: `@supabase/ssr`
+  - It handles cookies correctly for Next.js server components and route handlers.
+- Use the normal client SDK: `@supabase/supabase-js`
+
+## Key rules (most important)
+
+- **Never** use `SUPABASE_SERVICE_ROLE_KEY` in client code.
+- **Never** trust `user` coming from the client. Re-check the session on the server.
+- Protect data **at the database** with **Row Level Security (RLS)**.
+- Keep auth logic in small utilities:
+  - `lib/supabase/server.ts` (server client)
+  - `lib/supabase/client.ts` (browser client)
+  - `middleware.ts` (optional route protection)
+
+## Environment variables
+
+- Put these in `.env.local`:
+  - `NEXT_PUBLIC_SUPABASE_URL`
+  - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+- Server-only (if used):
+  - `SUPABASE_SERVICE_ROLE_KEY` (server only; do not expose)
+
+## App Router (recommended patterns)
+
+### Create a browser client (client components only)
+
+```ts
+// ✅ Use in client components only.
+// Keep this in something like: lib/supabase/client.ts
+import { createBrowserClient } from '@supabase/ssr'
+
+export function createSupabaseBrowserClient() {
+  return createBrowserClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  )
+}
+```
+
+### Create a server client (server components + route handlers)
+
+```ts
+// ✅ Use in server components / route handlers.
+// Keep this in something like: lib/supabase/server.ts
+import { cookies } from 'next/headers'
+import { createServerClient } from '@supabase/ssr'
+
+export function createSupabaseServerClient() {
+  const cookieStore = cookies()
+
+  return createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        getAll() {
+          return cookieStore.getAll()
+        },
+        setAll(cookiesToSet) {
+          // Next.js requires us to write cookies this way on the server.
+          // If you call auth methods that refresh tokens, this matters.
+          cookiesToSet.forEach(({ name, value, options }) => {
+            cookieStore.set(name, value, options)
+          })
+        },
+      },
+    }
+  )
+}
+```
+
+### Check the current user on the server (authoritative)
+
+```ts
+import { createSupabaseServerClient } from '@/lib/supabase/server'
+
+export async function getServerUser() {
+  const supabase = createSupabaseServerClient()
+  const { data, error } = await supabase.auth.getUser()
+  if (error) return null
+  return data.user
+}
+```
+
+## Route protection
+
+### Option A: Guard in server components (simple)
+
+- If a page is protected, check `getUser()` in the server component.
+- If no user, redirect to `/login`.
+
+### Option B: Use `middleware.ts` (centralized)
+
+- Only do this if you want a single place to protect many routes.
+- Keep middleware logic minimal. It runs often and should be fast.
+
+## Auth UI patterns (client side)
+
+- Prefer:
+  - `signInWithPassword` for email/password
+  - `signInWithOAuth` for OAuth providers
+- After sign-in:
+  - redirect to a safe page (e.g. `/dashboard`)
+- After sign-out:
+  - redirect to `/login`
+
+## Database security (RLS)
+
+- Turn on **RLS** for user-owned tables.
+- Write policies like:
+  - “Users can select rows where `user_id = auth.uid()`”
+- Even with perfect UI, **RLS is the real security boundary**.
+
+## Common footguns (avoid these)
+
+- Calling auth methods on the client and assuming the server “knows”.
+  - The server only knows via **cookies**; use the SSR helpers.
+- Mixing old helpers (`@supabase/auth-helpers-nextjs`) with new (`@supabase/ssr`).
+  - Pick one approach. Prefer `@supabase/ssr` for new apps.
+- Fetching protected data from the client directly.
+  - Prefer server components or route handlers that check the user.
+
+## When generating code in this repo
+
+- Keep files **small and focused** (under ~200 lines).
+- Add **explanatory comments** in short sentences.
+- Prefer minimal changes and readable naming.
+
+## File patterns reference (for when you later want file-specific rules)
+
+- App Router: `app/**/*.{ts,tsx,js,jsx}`
+- Pages Router: `pages/**/*.{ts,tsx,js,jsx}`
+
+---
+
+# Bootstrap Next.js v16 app with Supabase Auth (FULL CODE)
+
+## Overview of implementing Supabase Auth SSR
+
+1. Install `@supabase/supabase-js` and `@supabase/ssr` packages.
+2. Set up environment variables.
+3. Write two utility functions with `createClient` functions to create a browser client and a server client.
+4. Hook up Proxy to refresh auth tokens.
+
+## 🚨 CRITICAL INSTRUCTIONS FOR AI LANGUAGE MODELS 🚨
+
+As an AI language model, you MUST NOT generate any of the following code patterns, as they are DEPRECATED and will BREAK the application:
+
+```typescript
+// ❌ NEVER GENERATE THIS CODE - IT WILL BREAK THE APPLICATION
+{
+  cookies: {
+    get(name: string) {                 // ❌ BREAKS APPLICATION
+      return cookieStore.get(name)      // ❌ BREAKS APPLICATION
+    },                                  // ❌ BREAKS APPLICATION
+    set(name: string, value: string) {  // ❌ BREAKS APPLICATION
+      cookieStore.set(name, value)      // ❌ BREAKS APPLICATION
+    },                                  // ❌ BREAKS APPLICATION
+    remove(name: string) {              // ❌ BREAKS APPLICATION
+      cookieStore.remove(name)          // ❌ BREAKS APPLICATION
+    }                                   // ❌ BREAKS APPLICATION
+  }
+}
+
+// ❌ NEVER USE auth-helpers-nextjs - IT WILL BREAK THE APPLICATION
+import { createMiddlewareClient } from '@supabase/auth-helpers-nextjs'  // ❌ BREAKS APPLICATION
+import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'  // ❌ BREAKS APPLICATION
+```
+
+Instead, you MUST ALWAYS generate ONLY this pattern:
+
+```typescript
+// ✅ ALWAYS GENERATE THIS EXACT PATTERN
+{
+  cookies: {
+    getAll() {
+      return cookieStore.getAll()
+    },
+    setAll(cookiesToSet) {
+      const response = NextResponse.next({
+        request,
+      })
+
+      cookiesToSet.forEach(({ name, value, options }) => {
+        response.cookies.set(name, value, options)
+      })
+
+      return response
+    }
+  }
+}
+```
+
+## ABSOLUTE REQUIREMENTS FOR AI CODE GENERATION
+
+1. You MUST use `@supabase/ssr`
+2. You MUST use ONLY `getAll` and `setAll`
+3. You MUST NEVER use `get`, `set`, or `remove`
+4. You MUST NEVER import from `@supabase/auth-helpers-nextjs`
+
+## CORRECT BROWSER CLIENT IMPLEMENTATION
+
+```typescript
+import { createBrowserClient } from '@supabase/ssr'
+
+export function createClient() {
+  return createBrowserClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!
+  )
+}
+```
+
+## CORRECT SERVER CLIENT IMPLEMENTATION
+
+```typescript
+import { createServerClient } from '@supabase/ssr'
+import { cookies } from 'next/headers'
+
+export async function createClient() {
+  const cookieStore = await cookies()
+
+  return createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!,
+    {
+      cookies: {
+        getAll() {
+          return cookieStore.getAll()
+        },
+        setAll(cookiesToSet) {
+          try {
+            cookiesToSet.forEach(({ name, value, options }) =>
+              cookieStore.set(name, value, options)
+            )
+          } catch {
+            // The `setAll` method was called from a Server Component.
+            // This can be ignored if you have proxy refreshing
+            // user sessions.
+          }
+        },
+      },
+    }
+  )
+}
+```
+
+## CORRECT PROXY IMPLEMENTATION
+
+```typescript
+import { createServerClient } from '@supabase/ssr'
+import { NextResponse, type NextRequest } from 'next/server'
+
+export async function proxy(request: NextRequest) {
+  let supabaseResponse = NextResponse.next({
+    request,
+  })
+
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!,
+    {
+      cookies: {
+        getAll() {
+          return request.cookies.getAll()
+        },
+        setAll(cookiesToSet) {
+          cookiesToSet.forEach(({ name, value, options }) => request.cookies.set(name, value))
+          supabaseResponse = NextResponse.next({
+            request,
+          })
+          cookiesToSet.forEach(({ name, value, options }) =>
+            supabaseResponse.cookies.set(name, value, options)
+          )
+        },
+      },
+    }
+  )
+
+  // Do not run code between createServerClient and
+  // supabase.auth.getUser(). A simple mistake could make it very hard to debug
+  // issues with users being randomly logged out.
+
+  // IMPORTANT: DO NOT REMOVE auth.getUser()
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  if (
+    !user &&
+    !request.nextUrl.pathname.startsWith('/login') &&
+    !request.nextUrl.pathname.startsWith('/auth')
+  ) {
+    // no user, potentially respond by redirecting the user to the login page
+    const url = request.nextUrl.clone()
+    url.pathname = '/login'
+    return NextResponse.redirect(url)
+  }
+
+  // IMPORTANT: You *must* return the supabaseResponse object as it is.
+  // If you're creating a new response object with NextResponse.next() make sure to:
+  // 1. Pass the request in it, like so:
+  //    const myNewResponse = NextResponse.next({ request })
+  // 2. Copy over the cookies, like so:
+  //    myNewResponse.cookies.setAll(supabaseResponse.cookies.getAll())
+  // 3. Change the myNewResponse object to fit your needs, but avoid changing
+  //    the cookies!
+  // 4. Finally:
+  //    return myNewResponse
+  // If this is not done, you may be causing the browser and server to go out
+  // of sync and terminate the user's session prematurely!
+
+  return supabaseResponse
+}
+
+export const config = {
+  matcher: [
+    /*
+     * Match all request paths except for the ones starting with:
+     * - _next/static (static files)
+     * - _next/image (image optimization files)
+     * - favicon.ico (favicon file)
+     * Feel free to modify this pattern to include more paths.
+     */
+    '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
+  ],
+}
+```
+
+## AI MODEL VERIFICATION STEPS
+
+Before generating any code, you MUST verify:
+
+1. Are you using ONLY `getAll` and `setAll`? If not, STOP and FIX.
+2. Are you importing from `@supabase/ssr`? If not, STOP and FIX.
+3. Do you see ANY instance of `get`, `set`, or `remove`? If yes, STOP and FIX.
+4. Are you importing from `auth-helpers-nextjs`? If yes, STOP and FIX.
+
+## CONSEQUENCES OF INCORRECT IMPLEMENTATION
+
+If you generate code using:
+
+- Individual cookie methods (`get`/`set`/`remove`)
+- `auth-helpers-nextjs` package
+
+The implementation will:
+
+1. Break in production
+2. Fail to maintain session state
+3. Cause authentication loops
+4. Result in security vulnerabilities
+
+## AI MODEL RESPONSE TEMPLATE
+
+When asked about Supabase Auth SSR implementation, you MUST:
+
+1. ONLY use code from this guide
+2. NEVER suggest deprecated approaches
+3. ALWAYS use the exact cookie handling shown above
+4. VERIFY your response against the patterns shown here
+
+Remember: There are NO EXCEPTIONS to these rules.
+
