@@ -1,10 +1,15 @@
-import OpenAI from 'openai';
+import Anthropic from '@anthropic-ai/sdk';
 import { NextResponse } from 'next/server';
 
 interface GeneratePostBody {
   brief?: string;
   apiKey?: string;
   systemPrompt?: string;
+}
+
+interface AgentStep {
+  label: string;
+  content: string;
 }
 
 export async function POST(request: Request) {
@@ -28,29 +33,84 @@ export async function POST(request: Request) {
   }
 
   try {
-    const client = new OpenAI({ apiKey });
-    const response = await client.chat.completions.create({
-      model: 'gpt-4o-mini',
+    const client = new Anthropic({ apiKey });
+
+    // Step 1: Analyse briefen – hvad er emne, tone og målgruppe?
+    const step1Response = await client.messages.create({
+      model: 'claude-sonnet-4-6',
+      max_tokens: 400,
+      system: 'Du er en LinkedIn content-ekspert. Analyser briefs kortfattet og præcist på dansk.',
       messages: [
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content: brief },
+        {
+          role: 'user',
+          content: `Analyser dette brief og identificér kortfattet: emne, tone, målgruppe og 2-3 nøglebudskaber.\n\nBrief: ${brief}`,
+        },
       ],
-      temperature: 1,
-      max_tokens: 500,
-      top_p: 1,
-      frequency_penalty: 0,
-      presence_penalty: 0,
     });
 
-    const content = response.choices[0]?.message?.content?.trim();
-    if (!content) {
-      return NextResponse.json(
-        { error: 'No content generated' },
-        { status: 502 }
-      );
+    const analysis =
+      step1Response.content[0].type === 'text' ? step1Response.content[0].text : '';
+
+    // Step 2: Generer et udkast til LinkedIn-opslaget
+    const step2Response = await client.messages.create({
+      model: 'claude-sonnet-4-6',
+      max_tokens: 700,
+      system: systemPrompt,
+      messages: [
+        {
+          role: 'user',
+          content: `Analyser dette brief og identificér kortfattet: emne, tone, målgruppe og 2-3 nøglebudskaber.\n\nBrief: ${brief}`,
+        },
+        { role: 'assistant', content: analysis },
+        {
+          role: 'user',
+          content:
+            'Skriv nu et LinkedIn-opslag på dansk baseret på din analyse. Inkludér en stærk hook der stopper scrollet, et informativt midterparti og en tydelig CTA.',
+        },
+      ],
+    });
+
+    const draft =
+      step2Response.content[0].type === 'text' ? step2Response.content[0].text : '';
+
+    // Step 3: Evaluer og forbedr – stærk hook, max 3000 tegn, god CTA
+    const step3Response = await client.messages.create({
+      model: 'claude-sonnet-4-6',
+      max_tokens: 700,
+      system: systemPrompt,
+      messages: [
+        {
+          role: 'user',
+          content: `Analyser dette brief og identificér kortfattet: emne, tone, målgruppe og 2-3 nøglebudskaber.\n\nBrief: ${brief}`,
+        },
+        { role: 'assistant', content: analysis },
+        {
+          role: 'user',
+          content:
+            'Skriv nu et LinkedIn-opslag på dansk baseret på din analyse. Inkludér en stærk hook der stopper scrollet, et informativt midterparti og en tydelig CTA.',
+        },
+        { role: 'assistant', content: draft },
+        {
+          role: 'user',
+          content:
+            'Evaluer opslaget kritisk: Er hooket stærkt nok til at stoppe scrollet? Er det under 3000 tegn? Er CTA\'en klar og handlingsorienteret? Giv den endelige, forbedrede version – kun selve opslaget, ingen forklaring.',
+        },
+      ],
+    });
+
+    const finalContent =
+      step3Response.content[0].type === 'text' ? step3Response.content[0].text : '';
+
+    if (!finalContent) {
+      return NextResponse.json({ error: 'No content generated' }, { status: 502 });
     }
 
-    return NextResponse.json({ content });
+    const agentSteps: AgentStep[] = [
+      { label: 'Analyse', content: analysis },
+      { label: 'Udkast', content: draft },
+    ];
+
+    return NextResponse.json({ content: finalContent, agentSteps });
   } catch (error) {
     const message =
       error instanceof Error ? error.message : 'Unknown server error';

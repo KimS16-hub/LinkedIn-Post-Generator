@@ -3,10 +3,16 @@ export interface Brief {
   id: string;
 }
 
+export interface AgentStep {
+  label: string;
+  content: string;
+}
+
 export interface GeneratedPost {
   id: string;
   brief: string;
   content: string;
   status: 'pending' | 'generated' | 'error';
+  agentSteps?: AgentStep[];
   error?: string;
 }

@@ -1,7 +1,14 @@
+import type { AgentStep } from '../types';
+
 interface GeneratePostOptions {
   brief: string;
   apiKey: string;
   systemPrompt: string;
+}
+
+interface GeneratePostResult {
+  content: string;
+  agentSteps: AgentStep[];
 }
 
 export class APIError extends Error {
@@ -15,7 +22,7 @@ export async function generatePost({
   brief,
   apiKey,
   systemPrompt,
-}: GeneratePostOptions): Promise<string> {
+}: GeneratePostOptions): Promise<GeneratePostResult> {
   if (!apiKey) {
     throw new APIError('API key is required');
   }
@@ -30,6 +37,7 @@ export async function generatePost({
 
   const payload = (await response.json()) as {
     content?: string;
+    agentSteps?: AgentStep[];
     error?: string;
   };
 
@@ -41,5 +49,8 @@ export async function generatePost({
     throw new APIError('No content generated');
   }
 
-  return payload.content;
+  return {
+    content: payload.content,
+    agentSteps: payload.agentSteps ?? [],
+  };
 }

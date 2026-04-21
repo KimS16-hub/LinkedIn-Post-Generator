@@ -2,7 +2,7 @@ import { createContext, useContext, useState, useEffect, type ReactNode } from '
 import { LINKEDIN_SYSTEM_PROMPT } from '../config/prompts';
 
 const STORAGE_KEYS = {
-  API_KEY: 'openai_api_key',
+  API_KEY: 'anthropic_api_key',
   SYSTEM_PROMPT: 'system_prompt',
 };
 

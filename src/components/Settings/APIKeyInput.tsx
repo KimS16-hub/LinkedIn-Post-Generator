@@ -19,7 +19,7 @@ export function APIKeyInput({ onSave, initialKey }: APIKeyInputProps) {
     <div className="rounded-lg bg-white p-4 shadow-sm dark:bg-gray-900">
       <div className="flex items-center gap-2 mb-2">
         <Key className="h-5 w-5 text-blue-600" />
-        <h3 className="font-semibold text-gray-900 dark:text-gray-100">OpenAI API Key</h3>
+        <h3 className="font-semibold text-gray-900 dark:text-gray-100">Anthropic API Key</h3>
       </div>
       {isEditing ? (
         <div className="space-y-2">
@@ -27,7 +27,7 @@ export function APIKeyInput({ onSave, initialKey }: APIKeyInputProps) {
             type="password"
             value={apiKey}
             onChange={(e) => setApiKey(e.target.value)}
-            placeholder="sk-..."
+            placeholder="sk-ant-..."
             className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 dark:border-gray-700 dark:bg-gray-950 dark:text-gray-100"
           />
           <button

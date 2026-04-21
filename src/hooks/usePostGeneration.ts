@@ -10,7 +10,7 @@ export function usePostGeneration() {
 
   const generatePosts = async (briefs: Brief[]) => {
     if (!apiKey) {
-      setError('Please set your OpenAI API key in the settings panel');
+      setError('Please set your Anthropic API key in the settings panel');
       return;
     }
 
@@ -25,31 +25,26 @@ export function usePostGeneration() {
 
     for (const [index, brief] of briefs.entries()) {
       try {
-        const content = await generatePost({ 
+        const { content, agentSteps } = await generatePost({
           brief: brief.content,
           apiKey,
-          systemPrompt
+          systemPrompt,
         });
         setPosts((currentPosts) =>
           currentPosts.map((post, i) =>
             i === index
-              ? { ...post, content, status: 'generated' as const }
+              ? { ...post, content, agentSteps, status: 'generated' as const }
               : post
           )
         );
-      } catch (error) {
-        const errorMessage = error instanceof APIError 
-          ? error.message 
-          : 'Failed to generate post';
-          
+      } catch (err) {
+        const errorMessage =
+          err instanceof APIError ? err.message : 'Failed to generate post';
+
         setPosts((currentPosts) =>
           currentPosts.map((post, i) =>
             i === index
-              ? {
-                  ...post,
-                  status: 'error' as const,
-                  error: errorMessage,
-                }
+              ? { ...post, status: 'error' as const, error: errorMessage }
               : post
           )
         );

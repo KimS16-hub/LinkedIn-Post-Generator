@@ -31,7 +31,7 @@ export default function App() {
 
   const handleBriefsLoaded = (briefs: Brief[]) => {
     if (!apiKey) {
-      setError('Please set your OpenAI API key in the settings panel');
+      setError('Please set your Anthropic API key in the settings panel');
       return;
     }
     generatePosts(briefs);
