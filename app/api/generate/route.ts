@@ -3,7 +3,6 @@ import { NextResponse } from 'next/server';
 
 interface GeneratePostBody {
   brief?: string;
-  apiKey?: string;
   systemPrompt?: string;
 }
 
@@ -22,13 +21,20 @@ export async function POST(request: Request) {
   }
 
   const brief = body.brief?.trim();
-  const apiKey = body.apiKey?.trim();
   const systemPrompt = body.systemPrompt?.trim();
+  const apiKey = process.env.ANTHROPIC_API_KEY;
 
-  if (!brief || !apiKey || !systemPrompt) {
+  if (!brief || !systemPrompt) {
     return NextResponse.json(
-      { error: 'brief, apiKey, and systemPrompt are required' },
+      { error: 'brief and systemPrompt are required' },
       { status: 400 }
+    );
+  }
+
+  if (!apiKey) {
+    return NextResponse.json(
+      { error: 'ANTHROPIC_API_KEY er ikke sat i .env.local' },
+      { status: 500 }
     );
   }
 

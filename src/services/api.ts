@@ -2,7 +2,6 @@ import type { AgentStep } from '../types';
 
 interface GeneratePostOptions {
   brief: string;
-  apiKey: string;
   systemPrompt: string;
 }
 
@@ -20,19 +19,12 @@ export class APIError extends Error {
 
 export async function generatePost({
   brief,
-  apiKey,
   systemPrompt,
 }: GeneratePostOptions): Promise<GeneratePostResult> {
-  if (!apiKey) {
-    throw new APIError('API key is required');
-  }
-
   const response = await fetch('/api/generate', {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({ brief, apiKey, systemPrompt }),
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ brief, systemPrompt }),
   });
 
   const payload = (await response.json()) as {

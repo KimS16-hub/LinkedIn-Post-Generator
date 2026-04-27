@@ -6,14 +6,9 @@ import type { Brief, GeneratedPost } from '../types';
 export function usePostGeneration() {
   const [posts, setPosts] = useState<GeneratedPost[]>([]);
   const [error, setError] = useState<string | null>(null);
-  const { apiKey, systemPrompt } = useSettings();
+  const { systemPrompt } = useSettings();
 
   const generatePosts = async (briefs: Brief[]) => {
-    if (!apiKey) {
-      setError('Please set your Anthropic API key in the settings panel');
-      return;
-    }
-
     setError(null);
     const initialPosts = briefs.map((brief) => ({
       id: brief.id,
@@ -27,7 +22,6 @@ export function usePostGeneration() {
       try {
         const { content, agentSteps } = await generatePost({
           brief: brief.content,
-          apiKey,
           systemPrompt,
         });
         setPosts((currentPosts) =>
@@ -52,10 +46,5 @@ export function usePostGeneration() {
     }
   };
 
-  return {
-    posts,
-    error,
-    generatePosts,
-    setError,
-  };
+  return { posts, error, generatePosts, setError };
 }
